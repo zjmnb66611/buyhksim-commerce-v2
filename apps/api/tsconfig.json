@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "module": "CommonJS", "moduleResolution": "node", "experimentalDecorators": true, "emitDecoratorMetadata": true, "declaration": true, "sourceMap": true, "outDir": "dist", "baseUrl": ".", "incremental": true, "exactOptionalPropertyTypes": false, "paths": { "@buyhksim/contracts": ["../../packages/contracts/src/index.ts"], "@buyhksim/database": ["../../packages/database/src/index.ts"] } },
+  "include": ["src/**/*.ts"]
+}

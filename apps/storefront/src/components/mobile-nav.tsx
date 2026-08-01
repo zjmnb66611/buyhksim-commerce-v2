@@ -1,0 +1,5 @@
+"use client";
+import Link from "next/link";
+import { Heart, House, Package, ShoppingCart, UserCircle } from "@phosphor-icons/react";
+import { useCommerceStore } from "@/store/commerce-store";
+export function MobileNav() { const setCartOpen = useCommerceStore((s) => s.setCartOpen); return <nav className="fixed bottom-0 left-0 right-0 z-40 grid h-[66px] grid-cols-5 border-t border-[var(--line)] bg-[var(--surface)] lg:hidden"><Link href="/" className="grid place-items-center text-[11px] text-[var(--forest)]"><span><House size={22} weight="fill" className="mx-auto" />首页</span></Link><Link href="/favorites" className="grid place-items-center text-[11px]"><span><Heart size={22} className="mx-auto" />收藏</span></Link><button onClick={() => setCartOpen(true)} className="grid place-items-center text-[11px]"><span><ShoppingCart size={22} className="mx-auto" />购物车</span></button><Link href="/orders" className="grid place-items-center text-[11px]"><span><Package size={22} className="mx-auto" />订单</span></Link><Link href="/account" className="grid place-items-center text-[11px]"><span><UserCircle size={22} className="mx-auto" />我的</span></Link></nav>; }

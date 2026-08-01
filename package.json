@@ -1,0 +1,27 @@
+{
+  "name": "buyhksim-commerce-v2",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.17.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "test:ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "preview:storefront": "pnpm --filter @buyhksim/storefront exec next start --hostname 127.0.0.1 --port 3100",
+    "preview:admin": "pnpm --filter @buyhksim/admin exec next start --hostname 127.0.0.1 --port 3101",
+    "preview:api": "pnpm --filter @buyhksim/api start",
+    "db:generate": "pnpm --filter @buyhksim/database db:generate",
+    "db:migrate": "pnpm --filter @buyhksim/database db:migrate",
+    "db:studio": "pnpm --filter @buyhksim/database db:studio"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "prettier": "^3.6.2",
+    "sharp": "^0.35.3",
+    "turbo": "^2.5.5",
+    "typescript": "^5.8.3"
+  }
+}
