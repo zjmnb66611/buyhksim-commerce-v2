@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "buyhksim-commerce-v2",
+  "main": "infra/cloudflare/static-worker.mjs",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "apps/storefront/out",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": true
+  }
+}
