@@ -1,3 +1,5 @@
-import { Globe, Headset, Question, ShieldCheck, WifiHigh } from "@phosphor-icons/react/dist/ssr";
+"use client";
+import { Globe, Headset, Question, ShieldCheck, WifiHigh } from "@phosphor-icons/react";
+import { useTranslations } from "@/hooks/use-translations";
 const items = [[Globe,"全球覆盖","200+ 国家和地区"],[ShieldCheck,"价格透明","无隐藏费用"],[ShieldCheck,"安全支付","多种支付方式"],[WifiHigh,"优质网络","合作优质运营商"],[Question,"售后无忧","不满意可退"],[Headset,"7×24 中文客服","快速响应 · 专业解答"]] as const;
-export function Assurance() { return <section id="support" className="mt-8 border-y border-[var(--line)] bg-[var(--surface)]"><div className="container-shell grid grid-cols-2 py-5 sm:grid-cols-3 lg:grid-cols-6">{items.map(([Icon,title,desc], index) => <div key={title} className={`flex items-center gap-3 px-4 py-3 ${index ? "lg:border-l lg:border-[var(--line)]" : ""}`}><Icon size={30} /><span><b className="block text-sm">{title}</b><small className="quiet">{desc}</small></span></div>)}</div></section>; }
+export function Assurance() { const { t } = useTranslations(); return <section id="support" className="mt-8 border-y border-[var(--line)] bg-[var(--surface)]"><div className="container-shell grid grid-cols-2 py-5 sm:grid-cols-3 lg:grid-cols-6">{items.map(([Icon,title,desc], index) => <div key={title} className={`flex items-center gap-3 px-4 py-3 ${index ? "lg:border-l lg:border-[var(--line)]" : ""}`}><Icon size={30} /><span><b className="block text-sm">{t(title)}</b><small className="quiet">{t(desc)}</small></span></div>)}</div></section>; }

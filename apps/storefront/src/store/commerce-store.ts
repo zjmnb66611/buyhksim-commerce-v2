@@ -2,9 +2,9 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { Locale } from "@buyhksim/i18n";
 
 type CartLine = { productId: string; quantity: number; days: number; data: string };
-type Locale = "zh-CN" | "zh-HK" | "en";
 type Theme = "system" | "light" | "dark";
 
 type CommerceState = {
