@@ -15,6 +15,27 @@
       "when": 1785505011562,
       "tag": "0001_odd_hemingway",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785751088742,
+      "tag": "0002_account_and_transaction_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785753000000,
+      "tag": "0003_persistent_product_imports",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785754000000,
+      "tag": "0004_business_inquiries",
+      "breakpoints": true
     }
   ]
 }

@@ -21,10 +21,10 @@ export function Header({ onSearch }: { onSearch: (query: string) => void }) {
       <div className="bg-[#071526] text-white text-[12px]">
         <div className="container-shell flex min-h-9 items-center justify-between gap-2 py-1 sm:gap-4">
           <div className="hidden items-center gap-7 md:flex">
-            <span className="flex items-center gap-1.5"><MapPin size={15} weight="bold" />{t("全球覆盖 200+ 国家和地区")}</span>
-            <span className="flex items-center gap-1.5"><SimCard size={15} weight="bold" />{t("eSIM 即买即用")}</span>
-            <span className="flex items-center gap-1.5"><Package size={15} weight="bold" />{t("顺丰配送，覆盖热门目的地")}</span>
-            <span className="flex items-center gap-1.5"><Headset size={15} weight="bold" />{t("7×24 小时中文客服")}</span>
+            <span className="flex items-center gap-1.5"><MapPin size={15} weight="bold" />{t("热门目的地与套餐持续更新")}</span>
+            <span className="flex items-center gap-1.5"><SimCard size={15} weight="bold" />{t("eSIM 在线选购")}</span>
+            <span className="flex items-center gap-1.5"><Package size={15} weight="bold" />{t("实体卡配送以结算页为准")}</span>
+            <span className="flex items-center gap-1.5"><Headset size={15} weight="bold" />{t("客服服务时间以公告为准")}</span>
           </div>
           <span className="hidden sm:inline md:hidden">{t("全球上网卡 · 安全支付 · 中文服务")}</span>
           <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-4">

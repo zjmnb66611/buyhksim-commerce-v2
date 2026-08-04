@@ -1,49 +1,580 @@
 "use client";
-
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle, DownloadSimple, FileCsv, FileXls, MagnifyingGlass, PencilSimple, Plus, UploadSimple, Warning } from "@phosphor-icons/react";
+import {
+  DownloadSimple,
+  MagnifyingGlass,
+  PencilSimple,
+  Plus,
+  UploadSimple,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { AdminModal } from "@/components/admin-modal";
-import { parseCsv, triggerDownload } from "@/lib/admin-utils";
+import { triggerDownload } from "@/lib/admin-utils";
+import { adminApi } from "@/lib/api-client";
 
-type Row={id:string;title:string;sku:string;kind:string;destination:string;price:number;stock:number;status:string;description:string};
-const seed:Row[]=[
-  {id:"1",title:"香港 5G eSIM",sku:"HK-5G-5D-5G",kind:"eSIM",destination:"香港",price:58,stock:986,status:"已上架",description:"香港本地 5G 高速套餐"},
-  {id:"2",title:"日本 5G eSIM",sku:"JP-5G-7D-10G",kind:"eSIM",destination:"日本",price:88,stock:642,status:"已上架",description:"日本多网络高速套餐"},
-  {id:"3",title:"欧洲多国 33 国 eSIM",sku:"EU-33-15D-30G",kind:"eSIM",destination:"欧洲",price:198,stock:215,status:"已上架",description:"欧洲 33 国通用套餐"},
-  {id:"4",title:"泰国 8 天上网卡",sku:"TH-SIM-8D-15G",kind:"实体 SIM",destination:"泰国",price:39,stock:84,status:"库存预警",description:"实体卡，顺丰发货"},
-];
-
-function isRows(value:unknown):value is Row[]{return Array.isArray(value)&&value.length<=10_000&&value.every((row)=>{if(!row||typeof row!=="object")return false;const item=row as Record<string,unknown>;return typeof item.id==="string"&&typeof item.title==="string"&&item.title.length<=180&&typeof item.sku==="string"&&item.sku.length<=80&&typeof item.kind==="string"&&typeof item.destination==="string"&&typeof item.price==="number"&&Number.isFinite(item.price)&&item.price>=0&&typeof item.stock==="number"&&Number.isSafeInteger(item.stock)&&item.stock>=0&&typeof item.status==="string"&&typeof item.description==="string"&&item.description.length<=1_000})}
-
-export default function ProductsPage(){
-  const [rows,setRows]=useState(seed);const [selected,setSelected]=useState<string[]>([]);const [query,setQuery]=useState("");
-  const deferredQuery=useDeferredValue(query);
-  const [modal,setModal]=useState<"single"|"batch"|"adjust"|null>(null);const [editing,setEditing]=useState<Row|null>(null);const [adjustKind,setAdjustKind]=useState<"price"|"stock">("price");const [hydrated,setHydrated]=useState(false);
-  useEffect(()=>{try{const saved=localStorage.getItem("buyhksim-admin-products");if(saved){const parsed:unknown=JSON.parse(saved);if(isRows(parsed))setRows(parsed);else localStorage.removeItem("buyhksim-admin-products")}}catch{localStorage.removeItem("buyhksim-admin-products")}setHydrated(true)},[]);
-  useEffect(()=>{if(hydrated)localStorage.setItem("buyhksim-admin-products",JSON.stringify(rows))},[hydrated,rows]);
-  const visible=useMemo(()=>rows.filter((row)=>`${row.title}${row.sku}${row.destination}`.toLowerCase().includes(deferredQuery.trim().toLowerCase())),[rows,deferredQuery]);
-  const bulkStatus=(status:string)=>{if(!selected.length)return toast.error("请先选择商品");setRows((all)=>all.map((row)=>selected.includes(row.id)?{...row,status}:row));toast.success(`${selected.length} 个商品已${status}`);setSelected([])};
-  const save=(draft:Omit<Row,"id"|"status">,id?:string)=>{if(id)setRows((all)=>all.map((row)=>row.id===id?{...row,...draft}:row));else setRows((all)=>[{...draft,id:crypto.randomUUID(),status:"草稿"},...all]);setEditing(null);setModal(null);toast.success(id?"商品更新已保存":"商品草稿已保存")};
-  const openAdjust=(kind:"price"|"stock")=>{if(!selected.length)return toast.error("请先选择要调整的商品");setAdjustKind(kind);setModal("adjust")};
-
-  return <><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-semibold text-[var(--forest)]">CATALOG MANAGEMENT</p><h1 className="mt-1 text-3xl font-black">商品管理</h1><p className="mt-2 quiet">商家可自主维护 SPU、SKU、价格、库存与上下架状态，变更保存在当前运营环境。</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={()=>setModal("batch")} className="secondary-action flex items-center gap-2 rounded-lg px-4 py-2.5 font-semibold"><UploadSimple/>批量导入</button><button type="button" onClick={()=>setModal("single")} className="primary-action flex items-center gap-2 rounded-lg px-4 py-2.5 font-semibold"><Plus/>新建商品</button></div></div>
-    <section className="surface mt-6 overflow-hidden rounded-xl"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] p-4"><div className="flex flex-wrap gap-2"><button type="button" onClick={()=>bulkStatus("已上架")} className="rounded-lg border border-[var(--line)] px-3 py-2 text-sm">批量上架</button><button type="button" onClick={()=>bulkStatus("已下架")} className="rounded-lg border border-[var(--line)] px-3 py-2 text-sm">批量下架</button><button type="button" onClick={()=>openAdjust("price")} className="rounded-lg border border-[var(--line)] px-3 py-2 text-sm">批量改价</button><button type="button" onClick={()=>openAdjust("stock")} className="rounded-lg border border-[var(--line)] px-3 py-2 text-sm">调整库存</button></div><label className="flex min-w-[220px] items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-2"><MagnifyingGlass/><input value={query} onChange={(event)=>setQuery(event.target.value)} placeholder="搜索商品或 SKU" className="min-w-0 flex-1 bg-transparent text-sm outline-none"/></label></div>
-      <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="table-head"><tr><th className="p-4"><input type="checkbox" aria-label="全选" checked={selected.length===visible.length&&visible.length>0} onChange={(event)=>setSelected(event.target.checked?visible.map((row)=>row.id):[])}/></th>{["商品 / SKU","类型","目的地","售价","可用库存","状态","操作"].map((heading)=><th scope="col" key={heading} className="p-4 font-medium">{heading}</th>)}</tr></thead><tbody>{visible.map((row)=><tr key={row.id} className="border-t border-[var(--line)]"><td className="p-4"><input aria-label={`选择 ${row.title}`} type="checkbox" checked={selected.includes(row.id)} onChange={()=>setSelected((current)=>current.includes(row.id)?current.filter((id)=>id!==row.id):[...current,row.id])}/></td><td className="p-4"><b>{row.title}</b><p className="mt-1 text-xs quiet">{row.sku}</p></td><td className="p-4">{row.kind}</td><td className="p-4">{row.destination}</td><td className="p-4 font-semibold">¥{row.price.toFixed(2)}</td><td className="p-4">{row.stock}</td><td className="p-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${row.status==="已上架"?"bg-emerald-100 text-emerald-800":row.status==="库存预警"?"bg-amber-100 text-amber-800":"bg-slate-200 text-slate-800"}`}>{row.status}</span></td><td className="p-4"><button type="button" onClick={()=>setEditing(row)} className="inline-flex items-center gap-1 font-semibold text-[var(--forest)]" aria-label={`编辑 ${row.title}`}><PencilSimple/>编辑</button></td></tr>)}</tbody></table>{!visible.length&&<p className="p-10 text-center quiet">没有符合条件的商品</p>}</div></section>
-    {(modal==="single"||editing)&&<ProductModal initial={editing} onClose={()=>{setModal(null);setEditing(null)}} onSave={save}/>} {modal==="batch"&&<BatchModal onClose={()=>setModal(null)} onImport={(imported)=>{setRows((all)=>{const existing=new Set(all.map((row)=>row.sku.toLowerCase()));const fresh=imported.filter((row)=>!existing.has(row.sku.toLowerCase()));return [...fresh,...all]});setModal(null);toast.success(`${imported.length} 个有效商品已导入草稿`)}}/>}{modal==="adjust"&&<AdjustModal kind={adjustKind} count={selected.length} onClose={()=>setModal(null)} onApply={(value)=>{setRows((all)=>all.map((row)=>selected.includes(row.id)?{...row,[adjustKind]:value}:row));setSelected([]);setModal(null);toast.success(`${adjustKind==="price"?"价格":"库存"}已批量更新`)}}/>}
-  </>;
+type Row = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  destination: string;
+  kind: "ESIM" | "PHYSICAL_SIM";
+  status: string;
+  sku_id: string;
+  sku_code: string;
+  sku_title: string;
+  price_minor: number;
+  compare_at_price_minor: number | null;
+  commission_bps: number;
+  stock: number;
+  image_url: string | null;
+  sku_attributes: {
+    validityDays?: number;
+    days?: number;
+    dataGb?: number;
+    data?: string;
+  };
+};
+type Draft = {
+  slug: string;
+  title: string;
+  description: string;
+  destination: string;
+  kind: Row["kind"];
+  imageUrl?: string;
+  sku: {
+    code: string;
+    title: string;
+    priceMinor: number;
+    compareAtPriceMinor: null;
+    attributes: { validityDays: number; dataGb: number };
+    commissionBps: number;
+    stock: number;
+  };
+};
+const statusLabel: Record<string, string> = {
+  ACTIVE: "已上架",
+  INACTIVE: "已下架",
+  DRAFT: "草稿",
+  PENDING_REVIEW: "待审核",
+  SCHEDULED: "定时发布",
+  REJECTED: "已驳回",
+};
+const newKey = () => crypto.randomUUID().replaceAll("-", "");
+export default function ProductsPage() {
+  const [rows, setRows] = useState<Row[]>([]),
+    [selected, setSelected] = useState<string[]>([]),
+    [query, setQuery] = useState(""),
+    [loading, setLoading] = useState(true),
+    [modal, setModal] = useState<"single" | "batch" | null>(null),
+    [editing, setEditing] = useState<Row | null>(null);
+  const deferred = useDeferredValue(query);
+  const reload = async () => {
+    const payload = await adminApi<{ ok: true; data: Row[] }>(
+      "/admin/products",
+    );
+    setRows(payload.data);
+  };
+  useEffect(() => {
+    void reload()
+      .catch((error) =>
+        toast.error(error instanceof Error ? error.message : "商品加载失败"),
+      )
+      .finally(() => setLoading(false));
+  }, []);
+  const visible = useMemo(
+    () =>
+      rows.filter((row) =>
+        `${row.title}${row.sku_code}${row.destination}`
+          .toLowerCase()
+          .includes(deferred.trim().toLowerCase()),
+      ),
+    [rows, deferred],
+  );
+  const save = async (draft: Draft, id?: string) => {
+    await adminApi(id ? `/admin/products/${id}` : "/admin/products", {
+      method: id ? "PATCH" : "POST",
+      body: JSON.stringify(draft),
+    });
+    await reload();
+    setEditing(null);
+    setModal(null);
+    toast.success(id ? "商品更新已保存" : "商品草稿已保存");
+  };
+  const bulkStatus = async (status: "ACTIVE" | "INACTIVE") => {
+    if (!selected.length) return toast.error("请先选择商品");
+    if (
+      !window.confirm(
+        `确认批量${status === "ACTIVE" ? "上架" : "下架"} ${selected.length} 个商品？`,
+      )
+    )
+      return;
+    await Promise.all(
+      selected.map((id) =>
+        adminApi(`/admin/products/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ status }),
+        }),
+      ),
+    );
+    await reload();
+    setSelected([]);
+    toast.success("批量状态更新完成");
+  };
+  return (
+    <>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-[var(--forest)]">
+            CATALOG MANAGEMENT
+          </p>
+          <h1 className="mt-1 text-3xl font-black">商品管理</h1>
+          <p className="mt-2 quiet">所有变更写入服务端数据库并记录操作审计。</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setModal("batch")}
+            className="secondary-action flex items-center gap-2 rounded-lg px-4 py-2.5 font-semibold"
+          >
+            <UploadSimple />
+            批量导入
+          </button>
+          <button
+            onClick={() => setModal("single")}
+            className="primary-action flex items-center gap-2 rounded-lg px-4 py-2.5 font-semibold"
+          >
+            <Plus />
+            新建商品
+          </button>
+        </div>
+      </div>
+      <section className="surface mt-6 overflow-hidden rounded-xl">
+        <div className="flex flex-wrap justify-between gap-3 border-b border-[var(--line)] p-4">
+          <div className="flex gap-2">
+            <button
+              onClick={() => void bulkStatus("ACTIVE")}
+              className="secondary-action rounded-lg px-3 py-2 text-sm"
+            >
+              批量上架
+            </button>
+            <button
+              onClick={() => void bulkStatus("INACTIVE")}
+              className="secondary-action rounded-lg px-3 py-2 text-sm"
+            >
+              批量下架
+            </button>
+          </div>
+          <label className="flex min-w-[220px] items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-2">
+            <MagnifyingGlass />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="搜索商品或 SKU"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+            />
+          </label>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-left text-sm">
+            <thead className="table-head">
+              <tr>
+                <th className="p-4">
+                  <input
+                    type="checkbox"
+                    aria-label="全选"
+                    checked={
+                      !!visible.length && selected.length === visible.length
+                    }
+                    onChange={(event) =>
+                      setSelected(
+                        event.target.checked
+                          ? visible.map((row) => row.id)
+                          : [],
+                      )
+                    }
+                  />
+                </th>
+                {[
+                  "商品 / SKU",
+                  "类型",
+                  "目的地",
+                  "售价",
+                  "可用库存",
+                  "状态",
+                  "操作",
+                ].map((item) => (
+                  <th className="p-4 font-medium" key={item}>
+                    {item}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((row) => (
+                <tr key={row.id} className="border-t border-[var(--line)]">
+                  <td className="p-4">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(row.id)}
+                      onChange={() =>
+                        setSelected((all) =>
+                          all.includes(row.id)
+                            ? all.filter((id) => id !== row.id)
+                            : [...all, row.id],
+                        )
+                      }
+                    />
+                  </td>
+                  <td className="p-4">
+                    <b>{row.title}</b>
+                    <p className="quiet text-xs">{row.sku_code}</p>
+                  </td>
+                  <td className="p-4">
+                    {row.kind === "ESIM" ? "eSIM" : "实体 SIM"}
+                  </td>
+                  <td className="p-4">{row.destination}</td>
+                  <td className="p-4 font-semibold">
+                    ¥{(row.price_minor / 100).toFixed(2)}
+                  </td>
+                  <td className="p-4">{row.stock}</td>
+                  <td className="p-4">
+                    <span className="rounded-full bg-[var(--wash)] px-2.5 py-1 text-xs font-semibold">
+                      {statusLabel[row.status] ?? row.status}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <button
+                      onClick={() => setEditing(row)}
+                      className="inline-flex items-center gap-1 font-semibold text-[var(--forest)]"
+                    >
+                      <PencilSimple />
+                      编辑
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {loading && <p className="p-10 text-center quiet">正在加载商品…</p>}
+          {!loading && !visible.length && (
+            <p className="p-10 text-center quiet">没有符合条件的商品</p>
+          )}
+        </div>
+      </section>
+      {(modal === "single" || editing) && (
+        <ProductModal
+          initial={editing}
+          onClose={() => {
+            setModal(null);
+            setEditing(null);
+          }}
+          onSave={save}
+        />
+      )}{" "}
+      {modal === "batch" && (
+        <BatchModal
+          onClose={() => setModal(null)}
+          onDone={async () => {
+            await reload();
+            setModal(null);
+          }}
+        />
+      )}
+    </>
+  );
 }
 
-function ProductModal({initial,onClose,onSave}:{initial:Row|null;onClose:()=>void;onSave:(row:Omit<Row,"id"|"status">,id?:string)=>void}){const submit=(event:React.FormEvent<HTMLFormElement>)=>{event.preventDefault();const data=new FormData(event.currentTarget);onSave({title:String(data.get("title")),sku:String(data.get("sku")),kind:String(data.get("kind")),destination:String(data.get("destination")),price:Number(data.get("price")),stock:Number(data.get("stock")),description:String(data.get("description"))},initial?.id)};return <AdminModal title={initial?"编辑商品":"新建单个商品"} onClose={onClose}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2"><Field autoFocus name="title" label="商品名称" defaultValue={initial?.title} placeholder="例如：韩国 5G eSIM"/><Field name="sku" label="SKU 编码" defaultValue={initial?.sku} placeholder="KR-5G-7D-10G"/><Field name="destination" label="目的地" defaultValue={initial?.destination} placeholder="韩国"/><label className="text-sm">卡类型<select name="kind" defaultValue={initial?.kind??"eSIM"} className="field-surface mt-2 w-full rounded-lg border border-[var(--line)] p-3"><option>eSIM</option><option>实体 SIM</option></select></label><Field name="price" label="售价（元）" type="number" step="0.01" defaultValue={String(initial?.price??"")} placeholder="68"/><Field name="stock" label="初始库存" type="number" step="1" defaultValue={String(initial?.stock??"")} placeholder="100"/><label className="text-sm sm:col-span-2">商品说明<textarea name="description" required maxLength={1000} defaultValue={initial?.description} className="field-surface mt-2 min-h-24 w-full rounded-lg border border-[var(--line)] p-3" placeholder="覆盖范围、激活规则、实名与兼容说明"/></label><div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={onClose} className="secondary-action rounded-lg px-5 py-2.5">取消</button><button className="primary-action rounded-lg px-5 py-2.5 font-semibold">{initial?"保存更新":"保存草稿"}</button></div></form></AdminModal>}
-function Field({name,label,type="text",step,defaultValue,placeholder,autoFocus=false}:{name:string;label:string;type?:string;step?:string;defaultValue?:string|undefined;placeholder:string;autoFocus?:boolean}){return <label className="text-sm">{label}<input autoFocus={autoFocus} name={name} type={type} step={step} required min={type==="number"?0:undefined} maxLength={type==="text"?180:undefined} defaultValue={defaultValue} className="field-surface mt-2 w-full rounded-lg border border-[var(--line)] p-3" placeholder={placeholder}/></label>}
-
-function AdjustModal({kind,count,onClose,onApply}:{kind:"price"|"stock";count:number;onClose:()=>void;onApply:(value:number)=>void}){const [value,setValue]=useState(0);return <AdminModal title={kind==="price"?"批量修改售价":"批量调整库存"} onClose={onClose}><p className="quiet">将同时更新已选择的 {count} 个商品。该操作需要明确确认。</p><label className="mt-5 block text-sm">{kind==="price"?"新售价（元）":"新库存数量"}<input autoFocus type="number" min="0" step={kind==="price"?"0.01":"1"} value={value} onChange={(event)=>setValue(Number(event.target.value))} className="field-surface mt-2 w-full rounded-lg border border-[var(--line)] p-3"/></label><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={onClose} className="secondary-action rounded-lg px-5 py-2.5">取消</button><button type="button" onClick={()=>onApply(value)} className="primary-action rounded-lg px-5 py-2.5 font-semibold">确认更新 {count} 项</button></div></AdminModal>}
-
-function BatchModal({onClose,onImport}:{onClose:()=>void;onImport:(rows:Row[])=>void}){
-  const input=useRef<HTMLInputElement>(null);const [file,setFile]=useState<File|null>(null);const [validating,setValidating]=useState(false);const [result,setResult]=useState<{valid:number;errors:string[];rows:Row[]}|null>(null);
-  const download=()=>{const csv="title,sku,destination,kind,price,stock,description\n香港 5G eSIM,HK-5G-5D-5G,香港,eSIM,58,100,\"香港本地 5G 高速套餐，支持热点\"\n";downloadText(csv,"buyhksim-product-import-template.csv")};
-  const validate=async()=>{if(!file)return toast.error("请先选择 CSV 或 Excel 文件");if(file.size>20*1024*1024)return toast.error("文件不能超过 20MB");if(!/\.(csv|xlsx)$/i.test(file.name))return toast.error("仅支持 CSV 或 Excel 文件");setValidating(true);try{let matrix:string[][];if(file.name.toLowerCase().endsWith(".xlsx")){const ExcelJS=(await import("exceljs")).default;const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(await file.arrayBuffer());const sheet=workbook.worksheets[0];if(!sheet)throw new Error("Excel 文件中没有工作表");if(sheet.rowCount>10_001)throw new Error("单次导入不能超过 10,000 行");matrix=[];sheet.eachRow((row)=>{matrix.push((row.values as unknown[]).slice(1).map((value)=>String(value??"").trim()))})}else matrix=parseCsv((await file.text()).replace(/^\uFEFF/,""));const headers=(matrix.shift()??[]).map((value)=>value.trim());const required=["title","sku","destination","kind","price","stock","description"];const missing=required.filter((item)=>!headers.includes(item));if(missing.length)throw new Error(`缺少必要列：${missing.join("、")}`);if(new Set(headers).size!==headers.length)throw new Error("导入文件包含重复列名");const errors:string[]=[];const seenSkus=new Set<string>();const rows:Row[]=matrix.flatMap((values,index)=>{const raw=Object.fromEntries(headers.map((header,column)=>[header,values[column]??""])) as Record<string,string>;const title=raw.title??"";const skuValue=raw.sku??"";const destination=raw.destination??"";const kind=raw.kind??"";const description=raw.description??"";const price=Number(raw.price);const stock=Number(raw.stock);const sku=skuValue.toLowerCase();if(!title||!skuValue||!destination||!description||!Number.isFinite(price)||price<0||!Number.isSafeInteger(stock)||stock<0||!["eSIM","实体 SIM"].includes(kind)){errors.push(`第 ${index+2} 行字段不完整或类型、价格、库存无效`);return []}if(seenSkus.has(sku)){errors.push(`第 ${index+2} 行 SKU 重复：${skuValue}`);return []}seenSkus.add(sku);return [{id:crypto.randomUUID(),title:title.slice(0,180),sku:skuValue.slice(0,80),destination:destination.slice(0,80),kind,price,stock,status:"草稿",description:description.slice(0,1_000)}]});setResult({valid:rows.length,errors,rows});toast.success(`校验完成：${rows.length} 行有效，${errors.length} 行需修正`)}catch(error){const message=error instanceof Error?error.message:"文件解析失败";setResult({valid:0,errors:[message],rows:[]});toast.error(message)}finally{setValidating(false)}};
-  return <AdminModal title="CSV / Excel 批量导入" onClose={onClose}><div className="flex flex-wrap justify-between gap-3 rounded-lg bg-[var(--wash)] p-4 text-sm"><div><b>先校验，后提交</b><p className="mt-1 quiet">文件先在浏览器预检；正式提交仍由服务端使用幂等键处理。</p></div><button type="button" onClick={download} className="flex items-center gap-2 font-semibold text-[var(--forest)]"><DownloadSimple/>下载导入模板</button></div><button type="button" onClick={()=>input.current?.click()} className="mt-5 grid w-full place-items-center rounded-xl border-2 border-dashed border-[var(--line)] bg-[var(--surface-muted)] p-10 text-center hover:border-[var(--forest)]"><span>{file?.name.endsWith(".xlsx")?<FileXls size={42}/>:<FileCsv size={42}/>}<b className="mt-3 block">{file?file.name:"选择 CSV 或 Excel 文件"}</b><small className="mt-2 block quiet">最大 20MB，单次不超过 10,000 行</small></span></button><input ref={input} type="file" accept=".csv,.xlsx" className="hidden" onChange={(event)=>{setFile(event.target.files?.[0]??null);setResult(null)}}/>{result&&<div className="mt-5 overflow-hidden rounded-lg border border-[var(--line)]"><div className="flex items-center gap-2 border-b border-[var(--line)] bg-emerald-100 p-3 text-sm text-emerald-800"><CheckCircle/>{result.valid} 行通过校验</div>{result.errors.length>0&&<div className="flex items-start gap-2 bg-amber-100 p-3 text-sm text-amber-900"><Warning className="mt-0.5 shrink-0"/><div><b>{result.errors.length} 项需要处理</b><p className="mt-1">{result.errors.slice(0,3).join("；")}</p><button type="button" onClick={()=>downloadText(result.errors.join("\n"),"buyhksim-import-errors.txt")} className="mt-2 font-semibold underline">下载错误报告</button></div></div>}</div>}<div className="mt-6 flex flex-wrap justify-end gap-3"><button type="button" onClick={onClose} className="secondary-action rounded-lg px-5 py-2.5">取消</button><button type="button" disabled={validating} onClick={validate} className="secondary-action rounded-lg border-[var(--forest)] px-5 py-2.5 font-semibold text-[var(--forest)] disabled:opacity-50">{validating?"正在校验…":"暂存并校验"}</button><button type="button" disabled={!result?.rows.length||validating} onClick={()=>result&&onImport(result.rows)} className="primary-action rounded-lg px-5 py-2.5 font-semibold disabled:opacity-40">提交有效数据</button></div></AdminModal>
+function ProductModal({
+  initial,
+  onClose,
+  onSave,
+}: {
+  initial: Row | null;
+  onClose: () => void;
+  onSave: (draft: Draft, id?: string) => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const imageUrl = String(data.get("imageUrl") ?? "").trim();
+    const draft: Draft = {
+      slug: String(data.get("slug")),
+      title: String(data.get("title")),
+      description: String(data.get("description")),
+      destination: String(data.get("destination")),
+      kind: String(data.get("kind")) as Draft["kind"],
+      ...(imageUrl ? { imageUrl } : {}),
+      sku: {
+        code: String(data.get("sku")),
+        title: String(data.get("skuTitle")),
+        priceMinor: Math.round(Number(data.get("price")) * 100),
+        compareAtPriceMinor: null,
+        attributes: {
+          validityDays: Number(data.get("validityDays")),
+          dataGb: Number(data.get("dataGb")),
+        },
+        commissionBps: Number(data.get("commissionBps")),
+        stock: Number(data.get("stock")),
+      },
+    };
+    setSaving(true);
+    try {
+      await onSave(draft, initial?.id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "保存失败");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <AdminModal title={initial ? "编辑商品" : "新建单个商品"} onClose={onClose}>
+      <form
+        onSubmit={(event) => void submit(event)}
+        className="grid gap-4 sm:grid-cols-2"
+      >
+        <Field name="title" label="商品名称" value={initial?.title} />
+        <Field name="slug" label="商品网址标识" value={initial?.slug} />
+        <Field name="sku" label="SKU 编码" value={initial?.sku_code} />
+        <Field name="skuTitle" label="SKU 名称" value={initial?.sku_title} />
+        <Field name="destination" label="目的地" value={initial?.destination} />
+        <Field
+          name="imageUrl"
+          label="商品主图 HTTPS 地址"
+          value={initial?.image_url ?? undefined}
+          required={false}
+        />
+        <label className="text-sm">
+          卡类型
+          <select
+            name="kind"
+            defaultValue={initial?.kind ?? "ESIM"}
+            className="field-surface mt-2 w-full rounded-lg border border-[var(--line)] p-3"
+          >
+            <option value="ESIM">eSIM</option>
+            <option value="PHYSICAL_SIM">实体 SIM</option>
+          </select>
+        </label>
+        <Field
+          name="price"
+          label="售价（元）"
+          type="number"
+          value={initial ? String(initial.price_minor / 100) : undefined}
+        />
+        <Field
+          name="stock"
+          label="可用库存"
+          type="number"
+          value={initial ? String(initial.stock) : undefined}
+        />
+        <Field
+          name="validityDays"
+          label="有效天数"
+          type="number"
+          value={String(
+            initial?.sku_attributes?.validityDays ??
+              initial?.sku_attributes?.days ??
+              1,
+          )}
+        />
+        <Field
+          name="dataGb"
+          label="流量（GB）"
+          type="number"
+          value={String(initial?.sku_attributes?.dataGb ?? 1)}
+        />
+        <Field
+          name="commissionBps"
+          label="佣金基点"
+          type="number"
+          value={String(initial?.commission_bps ?? 0)}
+        />
+        <label className="text-sm sm:col-span-2">
+          商品说明
+          <textarea
+            name="description"
+            required
+            minLength={10}
+            maxLength={1000}
+            defaultValue={initial?.description}
+            className="field-surface mt-2 min-h-24 w-full rounded-lg border border-[var(--line)] p-3"
+          />
+        </label>
+        <div className="flex justify-end gap-3 sm:col-span-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="secondary-action rounded-lg px-5 py-2.5"
+          >
+            取消
+          </button>
+          <button
+            disabled={saving}
+            className="primary-action rounded-lg px-5 py-2.5 font-semibold disabled:opacity-50"
+          >
+            {saving ? "正在保存…" : "保存"}
+          </button>
+        </div>
+      </form>
+    </AdminModal>
+  );
+}
+function Field({
+  name,
+  label,
+  type = "text",
+  value,
+  required = true,
+}: {
+  name: string;
+  label: string;
+  type?: string;
+  value?: string | undefined;
+  required?: boolean;
+}) {
+  return (
+    <label className="text-sm">
+      {label}
+      <input
+        name={name}
+        type={type}
+        required={required}
+        min={type === "number" ? 0 : undefined}
+        step={name === "price" ? "0.01" : "1"}
+        maxLength={type === "text" ? 180 : undefined}
+        defaultValue={value}
+        className="field-surface mt-2 w-full rounded-lg border border-[var(--line)] p-3"
+      />
+    </label>
+  );
 }
 
-function downloadText(content:string,name:string){triggerDownload(["\uFEFF",content],"text/plain;charset=utf-8",name)}
+function BatchModal({
+  onClose,
+  onDone,
+}: {
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null),
+    [busy, setBusy] = useState(false),
+    [result, setResult] = useState<{
+      jobId: string;
+      validRows: number;
+      errorRows: number;
+      errors: Array<{ row: number; field: string; message: string }>;
+    } | null>(null);
+  const template =
+    "externalId,title,description,skuCode,destination,kind,imageUrl,dataGb,validityDays,priceMinor,stock,commissionBps\nHK-5D,香港 5G eSIM,香港本地高速套餐,HK-5G-5D-5G,香港,ESIM,https://cdn.example.com/hk-esim.webp,5,5,5800,100,800\n";
+  const validate = async () => {
+    if (!file) return toast.error("请先选择 CSV 或 Excel 文件");
+    setBusy(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const payload = await adminApi<{ ok: true; data: typeof result }>(
+        "/admin/imports/products/validate",
+        { method: "POST", headers: { "Idempotency-Key": newKey() }, body },
+      );
+      setResult(payload.data);
+      toast.success("服务端校验完成");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "校验失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const commit = async () => {
+    if (!result?.jobId) return;
+    setBusy(true);
+    try {
+      await adminApi("/admin/imports/products/commit", {
+        method: "POST",
+        headers: { "Idempotency-Key": newKey() },
+        body: JSON.stringify({ jobId: result.jobId }),
+      });
+      toast.success("有效商品已导入为草稿");
+      await onDone();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "导入失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <AdminModal title="CSV / Excel 批量导入" onClose={onClose}>
+      <button
+        onClick={() => {
+          triggerDownload(
+            ["\uFEFF", template],
+            "text/csv;charset=utf-8",
+            "buyhksim-product-import-template.csv",
+          );
+        }}
+        className="secondary-action flex items-center gap-2 rounded-lg px-4 py-2"
+      >
+        <DownloadSimple />
+        下载模板
+      </button>
+      <button
+        onClick={() => input.current?.click()}
+        className="mt-4 w-full rounded-xl border-2 border-dashed border-[var(--line)] p-10"
+      >
+        <b>{file?.name ?? "选择 CSV 或 Excel 文件"}</b>
+        <p className="mt-2 text-sm quiet">
+          最大 20MB，最多 10,000 行；文件仅发送给受保护的导入接口。
+        </p>
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept=".csv,.xlsx"
+        className="hidden"
+        onChange={(event) => {
+          setFile(event.target.files?.[0] ?? null);
+          setResult(null);
+        }}
+      />
+      {result && (
+        <div className="mt-4 rounded-lg bg-[var(--wash)] p-4 text-sm">
+          <b>
+            {result.validRows} 行有效，{result.errorRows} 行错误
+          </b>
+          {result.errors.length > 0 && (
+            <p className="mt-2 text-amber-700">
+              {result.errors
+                .slice(0, 5)
+                .map(
+                  (item) => `第 ${item.row} 行 ${item.field}: ${item.message}`,
+                )
+                .join("；")}
+            </p>
+          )}
+        </div>
+      )}
+      <div className="mt-6 flex justify-end gap-3">
+        <button
+          onClick={onClose}
+          className="secondary-action rounded-lg px-5 py-2.5"
+        >
+          取消
+        </button>
+        <button
+          disabled={busy || !file}
+          onClick={() => void validate()}
+          className="secondary-action rounded-lg px-5 py-2.5 disabled:opacity-50"
+        >
+          服务端校验
+        </button>
+        <button
+          disabled={busy || !result?.validRows}
+          onClick={() => void commit()}
+          className="primary-action rounded-lg px-5 py-2.5 disabled:opacity-50"
+        >
+          提交有效数据
+        </button>
+      </div>
+    </AdminModal>
+  );
+}

@@ -51,12 +51,19 @@ export const cartLineSchema = z.object({
   quantity: z.number().int().min(1).max(99),
 });
 
-export const checkoutPreviewRequestSchema = z.object({
-  lines: z.array(cartLineSchema).min(1).max(100),
-  couponCode: z.string().trim().max(64).optional(),
-  pointsToUse: z.number().int().nonnegative().default(0),
-  addressId: z.string().uuid().optional(),
-});
+export const checkoutPreviewRequestSchema = z
+  .object({
+    lines: z.array(cartLineSchema).min(1).max(100),
+    couponCode: z.string().trim().max(64).optional(),
+    pointsToUse: z.number().int().nonnegative().default(0),
+    addressId: z.string().uuid().optional(),
+  })
+  .refine(
+    (value) =>
+      new Set(value.lines.map((line) => line.skuId)).size ===
+      value.lines.length,
+    { message: "购物车存在重复 SKU", path: ["lines"] },
+  );
 
 export const createOrderRequestSchema = checkoutPreviewRequestSchema.extend({
   previewToken: z.string().min(24),
@@ -66,9 +73,16 @@ export const createOrderRequestSchema = checkoutPreviewRequestSchema.extend({
 export const batchImportRowSchema = z.object({
   externalId: z.string().trim().min(1).max(100),
   title: z.string().trim().min(2).max(180),
+  description: z.string().trim().max(1000).optional(),
   skuCode: z.string().trim().min(1).max(80),
   destination: z.string().trim().min(1).max(80),
   kind: z.enum(["ESIM", "PHYSICAL_SIM"]),
+  imageUrl: z
+    .string()
+    .url()
+    .max(2048)
+    .refine((value) => value.startsWith("https://"), "图片必须使用 HTTPS")
+    .optional(),
   dataGb: z.number().positive().nullable(),
   validityDays: z.number().int().positive().max(365),
   priceMinor: z.number().int().nonnegative(),
@@ -93,11 +107,17 @@ const transitions: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
   REFUNDED: [],
 };
 
-export function canTransitionOrder(from: OrderStatus, to: OrderStatus): boolean {
+export function canTransitionOrder(
+  from: OrderStatus,
+  to: OrderStatus,
+): boolean {
   return transitions[from].includes(to);
 }
 
-export function calculateLineTotal(unitPriceMinor: number, quantity: number): number {
+export function calculateLineTotal(
+  unitPriceMinor: number,
+  quantity: number,
+): number {
   if (!Number.isSafeInteger(unitPriceMinor) || unitPriceMinor < 0) {
     throw new RangeError("unitPriceMinor 必须是非负安全整数");
   }
@@ -105,16 +125,30 @@ export function calculateLineTotal(unitPriceMinor: number, quantity: number): nu
     throw new RangeError("quantity 必须是正安全整数");
   }
   const total = unitPriceMinor * quantity;
-  if (!Number.isSafeInteger(total)) throw new RangeError("金额超出安全整数范围");
+  if (!Number.isSafeInteger(total))
+    throw new RangeError("金额超出安全整数范围");
   return total;
 }
 
-export function calculateCommission(commissionBaseMinor: number, commissionBps: number): number {
-  if (!Number.isSafeInteger(commissionBaseMinor) || commissionBaseMinor < 0) throw new RangeError("佣金基数必须是非负安全整数");
-  if (!Number.isSafeInteger(commissionBps) || commissionBps < 0 || commissionBps > 5000) throw new RangeError("佣金比例必须在 0 到 5000 基点之间");
+export function calculateCommission(
+  commissionBaseMinor: number,
+  commissionBps: number,
+): number {
+  if (!Number.isSafeInteger(commissionBaseMinor) || commissionBaseMinor < 0)
+    throw new RangeError("佣金基数必须是非负安全整数");
+  if (
+    !Number.isSafeInteger(commissionBps) ||
+    commissionBps < 0 ||
+    commissionBps > 5000
+  )
+    throw new RangeError("佣金比例必须在 0 到 5000 基点之间");
   return Math.floor((commissionBaseMinor * commissionBps) / 10_000);
 }
 
-export function canBindReferral(userId: string, inviterId: string, ancestorIds: readonly string[]): boolean {
+export function canBindReferral(
+  userId: string,
+  inviterId: string,
+  ancestorIds: readonly string[],
+): boolean {
   return userId !== inviterId && !ancestorIds.includes(userId);
 }

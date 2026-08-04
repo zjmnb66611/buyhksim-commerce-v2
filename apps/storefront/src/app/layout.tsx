@@ -5,7 +5,7 @@ import { StorefrontProvider } from "@/components/storefront-provider";
 
 export const metadata: Metadata = {
   title: "BUYHKSIM｜全球 SIM 与 eSIM 商城",
-  description: "全球 200+ 国家和地区的 eSIM 与实体 SIM 卡，透明价格、安全支付、中文服务。",
+  description: "面向旅行与企业采购的 eSIM 和实体 SIM 商城，商品覆盖、价格、库存与交付规则以页面实时信息为准。",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

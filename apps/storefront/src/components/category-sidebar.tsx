@@ -10,7 +10,7 @@ export function CategorySidebar({ onCategory }: { onCategory: (value: string) =>
       <h2 className="border-b border-[var(--line)] px-4 py-3 text-sm font-bold">{t("按目的地 / 卡类型")}</h2>
       <div className="py-1">{regions.map((region, index) => <button key={region} onClick={() => onCategory(region)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-[var(--forest-wash)] hover:text-[var(--forest)]">{index === 0 ? <AirplaneTilt size={17} weight="fill" className="text-orange-500" /> : <GlobeHemisphereEast size={17} />}<span className="flex-1">{t(region)}</span><CaretRight size={14} /></button>)}</div>
       <div className="border-t border-[var(--line)] py-1">
-        <button onClick={() => onCategory("ESIM")} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--forest-wash)]"><DeviceMobile size={18} />{t("eSIM 即买即用")}<CaretRight className="ml-auto" size={14} /></button>
+        <button onClick={() => onCategory("ESIM")} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--forest-wash)]"><DeviceMobile size={18} />eSIM<CaretRight className="ml-auto" size={14} /></button>
         <button onClick={() => onCategory("PHYSICAL_SIM")} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--forest-wash)]"><SimCard size={18} />{t("实体卡 (SIM)")}<CaretRight className="ml-auto" size={14} /></button>
       </div>
     </div>

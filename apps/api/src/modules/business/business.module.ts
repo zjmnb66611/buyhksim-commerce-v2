@@ -1,0 +1,1 @@
+import { Module } from "@nestjs/common";import { EncryptionService } from "../../shared/encryption.service";import { BusinessController } from "./business.controller";import { BusinessService } from "./business.service";@Module({controllers:[BusinessController],providers:[BusinessService,EncryptionService]})export class BusinessModule{}

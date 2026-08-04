@@ -14,3 +14,9 @@ playwright-report
 test-results
 uploads
 .wrangler
+
+# Tencent Cloud EdgeOne
+.env
+.edgeone/*
+.tef_dist/*
+  
