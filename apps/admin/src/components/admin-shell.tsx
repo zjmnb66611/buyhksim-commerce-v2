@@ -13,16 +13,14 @@ import {
   PaintBrush,
   ShieldCheck,
   ShoppingBag,
-  SignOut,
   Tag,
   Truck,
   UsersThree,
   Wallet,
   X,
 } from "@phosphor-icons/react";
-import { Toaster, toast } from "sonner";
+import { Toaster } from "sonner";
 import { normalizeAdminPath } from "@/lib/admin-utils";
-import { adminApi } from "@/lib/api-client";
 
 type Theme = "system" | "light" | "dark";
 
@@ -70,19 +68,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>("system");
   const [isNavigating, startNavigation] = useTransition();
-  const [authorized, setAuthorized] = useState(pathname === "/login");
-
-  useEffect(() => {
-    if (pathname === "/login") {
-      setAuthorized(true);
-      return;
-    }
-    if (!sessionStorage.getItem("buyhksim-admin-access-token")) {
-      router.replace("/login");
-      return;
-    }
-    setAuthorized(true);
-  }, [pathname, router]);
 
   useEffect(() => {
     const saved = localStorage.getItem("buyhksim-admin-theme");
@@ -111,34 +96,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     },
     [pathname, router],
   );
-
-  const logout = async () => {
-    if (!window.confirm("确认退出当前管理会话？未提交的表单内容可能丢失。"))
-      return;
-    try {
-      await adminApi("/auth/logout", { method: "POST" }, false);
-    } catch {
-      // 网络异常时仍删除本机令牌；短期访问令牌会自然过期。
-    } finally {
-      sessionStorage.removeItem("buyhksim-admin-access-token");
-      toast.success("管理会话已退出");
-      router.replace("/login");
-    }
-  };
-
-  if (pathname === "/login")
-    return (
-      <>
-        {children}
-        <Toaster richColors closeButton position="top-center" theme={theme} />
-      </>
-    );
-  if (!authorized)
-    return (
-      <div className="grid min-h-screen place-items-center quiet">
-        正在验证管理会话…
-      </div>
-    );
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[250px_1fr]">
@@ -202,14 +159,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </select>
             </label>
             <span className="hidden text-sm sm:block">运营管理员</span>
-            <button
-              type="button"
-              onClick={() => void logout()}
-              className="grid h-10 w-10 place-items-center rounded-lg hover:bg-[var(--wash)]"
-              aria-label="退出登录"
-            >
-              <SignOut size={20} />
-            </button>
           </div>
         </header>
         <main id="admin-content" tabIndex={-1} className="p-4 sm:p-5 lg:p-8">
